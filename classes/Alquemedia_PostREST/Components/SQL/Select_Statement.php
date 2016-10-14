@@ -28,9 +28,31 @@ class Select_Statement extends String_Object{
 
         $whereClause = (string) new WHERE_Clause($modelName,$recordId);
 
-        $this->stringRepresentation = "SELECT * FROM $modelName WHERE $whereClause LIMIT ". (new SQL_Settings())
+        $this->stringRepresentation = "SELECT * FROM $modelName WHERE $whereClause";
 
-            ->selectLimit();
+    }
 
+    /**
+    * Set a limit for rows in queries
+    *
+    * @param int $pageSize
+    * @param int $pageNumber
+    * @return Select_Statement instance
+    */
+    public function limit($pageSize, $pageNumber = 1)
+    {
+        $this->stringRepresentation .= " LIMIT $pageSize OFFSET ". ($pageSize * --$pageNumber);
+
+        return $this;
+    }
+
+    /**
+    * Set a default limit for rows in queries
+    *
+    * @return Select_Statement instance
+    */
+    public function defaultLimit()
+    {
+        return $this->limit( (new SQL_Settings())->selectLimit() );
     }
 }

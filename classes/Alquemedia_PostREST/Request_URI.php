@@ -17,8 +17,29 @@ class Request_URI {
      */
     public function part( $partNumber ){
 
+    	if (count($_GET))
+    	{
+			return (string) @explode("/", @explode("?", $_SERVER["REQUEST_URI"])[0])[$partNumber];
+    	}
+
         return (string) @explode('/',$_SERVER['REQUEST_URI'])[$partNumber];
 
+    }
+
+    /**
+    * Return a parameter passed by the query string
+    *
+    * @param string $name
+    * @return string|null
+    */
+    public static function getParam($name)
+    {
+    	if (isset($_GET[$name]))
+    	{
+    		return $_GET[$name];
+    	}
+
+    	return null;
     }
 
 }

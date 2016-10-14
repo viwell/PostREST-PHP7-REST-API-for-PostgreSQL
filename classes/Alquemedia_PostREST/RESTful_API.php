@@ -27,9 +27,16 @@ class RESTful_API {
     private $result = [];
 
     /**
+     * @var Time when this class starts to run
+     */
+    private $startTime;
+
+    /**
      * RESTful_API constructor.
      */
     public function __construct() {
+
+        $this->initTimer();
 
         // if Connected to database
         if ( ($this->config = $this->configure()) &&
@@ -75,41 +82,74 @@ class RESTful_API {
     /**
      * @param string $modelName
      */
-    private function processModel( $modelName ){
+    private function processModel( $modelName )
+    {
+        try
+        {
+            if ( ! $modelName ){
 
-        if ( ! $modelName ){
+                $this->setError("Expected a model name in the URL");
 
-            $this->setError("Expected a model name in the URL");
+                return;
+            }
 
-            return;
+
+            $recordId = $this->uriPart(3);
+
+            if ( !$recordId)
+            {
+                if ( ! is_null(Request_URI::getParam("pageSize")))
+                {
+                    $errorMsg = "You must use pageSize with pageNumber, and both must be positive integers";
+
+                    Validator::notBlank(Request_URI::getParam("pageSize"), $errorMsg);
+                    Validator::isPositiveInt(Request_URI::getParam("pageSize"), $errorMsg);
+                    Validator::notNull(Request_URI::getParam("pageNumber"), $errorMsg);
+                    Validator::notBlank(Request_URI::getParam("pageNumber"), $errorMsg);
+                    Validator::isPositiveInt(Request_URI::getParam("pageNumber"), $errorMsg);
+
+                    $this->result['models'] = $this->getModels(
+                        $modelName,
+                        Request_URI::getParam("pageSize"),
+                        Request_URI::getParam("pageNumber")
+                    );
+                }
+                else
+                {
+                    $this->result['models'] = $this->getModels($modelName);
+                }
+            }
+            else
+            
+                $this->result[ $modelName ] = (new Model($modelName,$recordId))->asArray();
+
         }
-
-
-        $recordId = $this->uriPart(3);
-
-        if ( !$recordId)
-
-            $this->result['models'] = $this->getModels( $modelName );
-
-        else
-
-            $this->result[ $modelName ] = (new Model($modelName,$recordId))->asArray();
-
+        catch (\Exception $e)
+        {
+            $this->setError($e->getMessage());
+        }
     }
 
     /**
      * @param $modelName
      * @return array
      */
-    private function getModels( $modelName ){
+    private function getModels( $modelName, $pageSize = false, $pageNumber = false ){
 
-        $result = (new Database())->query((string) new Select_Statement($modelName) );
+        if ($pageSize)
+        {
+            $sql = (string) (new Select_Statement($modelName))->limit($pageSize, $pageNumber);
+        }
+        else
+        {
+           $sql = (string) (new Select_Statement($modelName))->defaultLimit();
+        }
 
-        if ( ! $result )
+        if ( ! ($result = (new Database())->query($sql)) )
 
             $this->setError("$modelName: No such Model found");
 
-        return $result ? $result->fetchAll( \PDO::FETCH_ASSOC ):[];
+        return $result ? $this->addCreatedSince($result->fetchAll( \PDO::FETCH_ASSOC )):[];
 
     }
 
@@ -123,6 +163,8 @@ class RESTful_API {
         if ( $this->config->get('show-server-vars'))
 
             $metaData['server-vars'] = $_SERVER;
+
+        $metaData["execution-time"] = $this->getExecutionTime();
 
         return $metaData;
     }
@@ -197,5 +239,46 @@ class RESTful_API {
 
         $this->result['error'] = $error;
 
+    }
+
+    /**
+    * Initialize the start time
+    */
+    private function initTimer()
+    {
+        $this->startTime = microtime(true); 
+    }
+
+    /**
+    * Get the elapsed execution time
+    *
+    * @param int $precision
+    * @return string
+    */
+    private function getExecutionTime($precision = 4)
+    {
+        return round((microtime(true) - $this->startTime), $precision)."s";
+    }
+
+    /**
+    * Add field 'created_since' to the result set
+    * 
+    * @param array $data
+    * @return array
+    */
+    private function addCreatedSince($data)
+    {
+        if (count($data))
+        {
+            for ($i = count($data) - 1; $i >= 0; $i--)
+            {
+                if (isset($data[$i]["created_date"]))
+                {
+                    $data[$i]["created_since"] = (string) new TimeSince($data[$i]["created_date"]);
+                }
+            }
+        }
+
+        return $data;
     }
 }
