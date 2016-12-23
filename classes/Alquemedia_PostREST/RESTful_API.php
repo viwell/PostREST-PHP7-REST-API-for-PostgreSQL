@@ -27,16 +27,9 @@ class RESTful_API {
     private $result = [];
 
     /**
-     * @var Time when this class starts to run
-     */
-    private $startTime;
-
-    /**
      * RESTful_API constructor.
      */
     public function __construct() {
-
-        $this->initTimer();
 
         // if Connected to database
         if ( ($this->config = $this->configure()) &&
@@ -96,7 +89,7 @@ class RESTful_API {
 
             $recordId = $this->uriPart(3);
 
-            if ( !$recordId)
+            if ( ! $recordId)
             {
                 if ( ! is_null(Request_URI::getParam("pageSize")))
                 {
@@ -120,7 +113,7 @@ class RESTful_API {
                 }
             }
             else
-            
+
                 $this->result[ $modelName ] = (new Model($modelName,$recordId))->asArray();
 
         }
@@ -242,14 +235,6 @@ class RESTful_API {
     }
 
     /**
-    * Initialize the start time
-    */
-    private function initTimer()
-    {
-        $this->startTime = microtime(true); 
-    }
-
-    /**
     * Get the elapsed execution time
     *
     * @param int $precision
@@ -257,12 +242,12 @@ class RESTful_API {
     */
     private function getExecutionTime($precision = 4)
     {
-        return round((microtime(true) - $this->startTime), $precision)."s";
+        return round((microtime(true) - $_SERVER["REQUEST_TIME_FLOAT"]), $precision)."s";
     }
 
     /**
     * Add field 'created_since' to the result set
-    * 
+    *
     * @param array $data
     * @return array
     */
